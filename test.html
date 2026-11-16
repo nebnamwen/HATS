@@ -1,0 +1,88 @@
+<head><meta charset="UTF-8"></head>
+<!-- 1. File input triggers the rear camera on mobile devices -->
+<canvas id="canvas" style="max-width: 100%; border: 1px solid #ccc;"></canvas>
+<br />
+<input type="file" id="cameraInput" accept="image/*" capture="environment" />
+
+<script src="./node_modules/js-aruco2/src/cv.js"></script>
+<script src="./node_modules/js-aruco2/src/aruco.js"></script>
+<script src="./node_modules/js-aruco2/src/dictionaries/aruco_4x4_1000.js"></script>
+
+<script>
+  const emojimap = {
+      3: "🐰",
+      9: "🦑",
+      46: "🐊",
+      47: "🦇",
+
+      17: "1️⃣",
+      42: "2️⃣",
+      43: "3️⃣",
+      21: "4️⃣",
+
+      10: "🏠"
+  }
+  
+  const input = document.getElementById('cameraInput');
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  // Create the 4x4_50 dictionary by slicing the first 50 codes and setting tau = 4
+  AR.DICTIONARIES['ARUCO_4X4_50'] = {
+      nBits: 16,
+      tau: 4,
+      codeList: AR.DICTIONARIES['ARUCO_4X4_1000'].codeList.slice(0, 50)
+  };
+
+  // Initialize the detector (adjust dictionaryName to match your markers)
+  const detector = new AR.Detector({
+      dictionaryName: 'ARUCO_4X4_50' 
+  });
+
+  input.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+
+      img.onload = () => {
+	  // 2. Downscale large mobile photos (e.g., max width 1280px)
+	  const MAX_SIZE = 1000;
+	  const scale = Math.min(1, MAX_SIZE / img.width, );
+	  canvas.width = img.width * scale;
+	  canvas.height = img.height * scale;
+
+	  // Draw image to canvas (modern browsers automatically handle EXIF rotation)
+	  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+	  URL.revokeObjectURL(objectUrl); // Free up memory
+
+	  // 3. Extract pixel data and run detection
+	  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+	  const markers = detector.detect(imageData);
+
+	  console.log(`Found ${markers.length} markers:`, markers);
+
+	  // 4. Draw bounding boxes around detected markers
+	  markers.forEach((marker) => {
+	      if (marker.id in emojimap) {
+		  ctx.strokeStyle = '#00FF00';
+		  ctx.lineWidth = 4;
+		  ctx.beginPath();
+		  marker.corners.forEach((corner, index) => {
+		      if (index === 0) ctx.moveTo(corner.x, corner.y);
+		      else ctx.lineTo(corner.x, corner.y);
+		  });
+		  ctx.closePath();
+		  ctx.stroke();
+
+		  ctx.font = "36px Arial, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji'";
+		  ctx.textBaseline = "middle";
+		  ctx.fillText(emojimap[marker.id], marker.corners[0].x, marker.corners[0].y);
+	      }
+	  });
+      };
+
+      img.src = objectUrl;
+  });
+</script>
