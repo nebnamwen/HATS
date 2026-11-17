@@ -1,4 +1,7 @@
-<head><meta charset="UTF-8"></head>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
 <!-- 1. File input triggers the rear camera on mobile devices -->
 <canvas id="canvas" style="max-width: 100%; border: 1px solid #ccc;"></canvas>
 <br />
@@ -9,20 +12,15 @@
 <script src="./node_modules/js-aruco2/src/dictionaries/aruco_4x4_1000.js"></script>
 
 <script>
-  const emojimap = {
-      3: "🐰",
-      9: "🦑",
-      46: "🐊",
-      47: "🦇",
-
-      17: "1️⃣",
-      42: "2️⃣",
-      43: "3️⃣",
-      21: "4️⃣",
-
-      10: "🏠"
+  let marker_data = {};
+  async function loadMarkerData() {
+      if ( Object.keys(marker_data).length > 0 ) return marker_data;
+      const resp = await fetch('markers.json');
+      marker_data = await resp.json();
+      return marker_data;
   }
-  
+  loadMarkerData();
+
   const input = document.getElementById('cameraInput');
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -42,6 +40,8 @@
   input.addEventListener('change', (event) => {
       const file = event.target.files[0];
       if (!file) return;
+
+      loadMarkerData().then(() => {}).catch((err) => console.error("couldn't load marker data:", err));
 
       const img = new Image();
       const objectUrl = URL.createObjectURL(file);
@@ -65,7 +65,7 @@
 
 	  // 4. Draw bounding boxes around detected markers
 	  markers.forEach((marker) => {
-	      if (marker.id in emojimap) {
+	      if (marker.id in marker_data) {
 		  ctx.strokeStyle = '#00FF00';
 		  ctx.lineWidth = 4;
 		  ctx.beginPath();
@@ -78,7 +78,7 @@
 
 		  ctx.font = "36px Arial, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji'";
 		  ctx.textBaseline = "middle";
-		  ctx.fillText(emojimap[marker.id], marker.corners[0].x, marker.corners[0].y);
+		  ctx.fillText(marker_data[marker.id]["emoji"], marker.corners[0].x, marker.corners[0].y);
 	      }
 	  });
       };

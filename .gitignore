@@ -1,3 +1,5 @@
 *~
 *.pyc
 node_modules/
+images/png/*.png
+images/pdf/*.pdf
