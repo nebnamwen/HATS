@@ -6,4 +6,4 @@ images:
 	python build_pdfs.py
 
 clean:
-	rm images/*/*
+	rm static/images/*/*

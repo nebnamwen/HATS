@@ -10,7 +10,7 @@ class marker:
 def _marker_group(kind):
     return { key: item for key, item in markers.items() if item.kind == kind }
 
-with open("markers.json", "r", encoding="utf-8") as file:
+with open("static/markers.json", "r", encoding="utf-8") as file:
     _marker_data = json.load(file)
 
 markers = { int(key): marker(_marker_data[key]) for key in _marker_data }

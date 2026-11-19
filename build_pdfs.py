@@ -3,8 +3,8 @@ from fpdf import FPDF
 
 from markers import *
 
-png_d = "images/png"
-pdf_d = "images/pdf"
+png_d = "static/images/png"
+pdf_d = "static/images/pdf"
 
 def png_f(marker):
     return f"{png_d}/{marker.name}.png"

@@ -19,11 +19,18 @@
 <div id="result" class="result"></div>
 <div><pre id="debug" class="debug"></pre></div>
 
-<script src="./node_modules/js-aruco2/src/cv.js"></script>
-<script src="./node_modules/js-aruco2/src/aruco.js"></script>
-<script src="./node_modules/js-aruco2/src/dictionaries/aruco_4x4_1000.js"></script>
+<script src="../node_modules/js-aruco2/src/cv.js"></script>
+<script src="../node_modules/js-aruco2/src/aruco.js"></script>
+<script src="../node_modules/js-aruco2/src/dictionaries/aruco_4x4_1000.js"></script>
 
 <script>
+  const input = document.getElementById('cameraInput');
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  const result_element = document.getElementById('result');
+  const debug_element = document.getElementById('debug');
+
   let marker_data = {};
   async function loadMarkerData() {
       if ( Object.keys(marker_data).length > 0 ) return marker_data;
@@ -33,12 +40,33 @@
   }
   loadMarkerData();
 
-  const input = document.getElementById('cameraInput');
-  const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  let game_token = null;
+  let session_token = null;
+  let player_id = null;
+  async function getSession() {
+      const old_game_token = localStorage.getItem('game_token');
+      const old_session_token = localStorage.getItem('session_token');
+      const url = new URL("../api/get_session", window.location.href);
+      url.search = new URLSearchParams({
+	  game_token: old_game_token,
+	  session_token: old_session_token
+      });
+      const resp = await fetch(url);
+      const session_data = await resp.json();
+      game_token = session_data.game_token
+      session_token = session_data.session_token
+      player_id = session_data.player
 
-  const result_element = document.getElementById('result');
-  const debug_element = document.getElementById('debug');
+      localStorage.setItem('game_token', game_token);
+      localStorage.setItem('session_token', session_token);
+  }
+  getSession().then(() => {
+      debug_element.innerHTML = JSON.stringify({
+	  game: game_token,
+	  session: session_token,
+	  player: player_id
+      });
+  });
 
   // Create the 4x4_50 dictionary by slicing the first 50 codes and setting tau = 4
   AR.DICTIONARIES['ARUCO_4X4_50'] = {
