@@ -1,4 +1,6 @@
 *~
+\#*\#
+.#*
 *.pyc
 node_modules/
 static/images/png/*.png
