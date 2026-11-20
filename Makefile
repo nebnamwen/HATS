@@ -18,4 +18,4 @@ libs:
 	cp ${ARUCO2SRC}/src/dictionaries/aruco_4x4_1000.js ${ARUCO2DST}
 
 clean:
-	rm static/images/*/*
+	ls static/images/*/* | xargs -r rm
