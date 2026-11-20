@@ -3,21 +3,78 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
-    .result {
+    .canvas_container {
+	position: relative;
 	display: inline-block;
-	padding: 0.5em;
-	font-size: 2rem;
-	background-color: black;
-	border-radius: 0.5em;
+	width: min(92vw, 400);
+	aspect-ratio: 1 / 1;
+    }
+
+    .canvas_container label,
+    .canvas_container canvas {
+	display: block;
+	width: 100%;
+	aspect-ratio: 1 / 1;
+	border: 1px solid #ccc;
+	box-sizing: border-box;
+    }
+
+    .detail_canvas {
+	display: block;
+    }
+
+    .tag_result_emoji {
+	position: absolute;
+	bottom: 10px;
+	right: 10px;
+	z-index: 10;
+	font-size: 3.0rem;
+	padding-left: 0.5rem;
+	padding-right: 0.5rem;
+	border-radius: 0.5rem;
+	background-color: rgb(170 170 170 / 50%);
+    }
+
+    .detail_button {
+	display: none;
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	z-index: 10;
+	border: none;
+	border-radius: 0.5rem;
+	background-color: rgb(170 170 170 / 50%);
+    }
+
+    dialog {
+	border: none;
+	padding: 0;
+    }
+
+    dialog button {
+	border: none;
+	background: transparent;
+	padding: 0;
+	outline: none; /* Removes the focus ring when clicked */
+	display: inline-flex; /* Prevents extra whitespace below the canvas */
     }
   </style>
 </head>
 <!-- 1. File input triggers the rear camera on mobile devices -->
-<canvas id="canvas" style="max-width: 100%; border: 1px solid #ccc;"></canvas>
+<dialog id="image_detail_dialog">
+  <button id="detail_close_button" command="close" commandfor="image_detail_dialog" class="close_detail_button">
+    <canvas id="processing_canvas" style="max-width: 100%; border: 1px solid #ccc;" class="detail_canvas"></canvas>
+  </button>
+</dialog>
+<div class="canvas_container">
+  <label for="image_input">
+    <canvas id="thumbnail_canvas"></canvas>
+  </label>
+  <div id="tag_result_emoji" class="tag_result_emoji"></div>
+  <button id="detail_button" command="show-modal" commandfor="image_detail_dialog" class="detail_button" disabled></button>
+</div>
 <br />
-<input type="file" id="cameraInput" accept="image/*" capture="environment" />
-<div id="result" class="result"></div>
-<div><pre id="debug" class="debug"></pre></div>
+<input type="file" id="image_input" accept="image/*" capture="environment" />
 
 <script src="../node_modules/js-aruco2/src/cv.js"></script>
 <script src="../node_modules/js-aruco2/src/aruco.js"></script>

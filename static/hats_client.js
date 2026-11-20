@@ -1,9 +1,34 @@
-const input = document.getElementById('cameraInput');
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d', { willReadFrequently: true });
+const image_input = document.getElementById('image_input');
+const processing_canvas = document.getElementById('processing_canvas');
+const ctx = processing_canvas.getContext('2d', { willReadFrequently: true });
 
-const result_element = document.getElementById('result');
-const debug_element = document.getElementById('debug');
+const thumbnail_canvas = document.getElementById('thumbnail_canvas');
+const thumb_ctx = thumbnail_canvas.getContext('2d');
+
+const thumb_size = thumbnail_canvas.getBoundingClientRect().width;
+thumbnail_canvas.width = thumb_size;
+thumbnail_canvas.height = thumb_size;
+
+function clearThumbnail() {
+    thumb_ctx.fillStyle = '#bbb';
+    thumb_ctx.fillRect(0, 0, thumb_size, thumb_size);
+    thumb_ctx.beginPath();
+    thumb_ctx.arc(thumb_size/2, thumb_size/2, thumb_size/3, 0, 2 * Math.PI);
+    thumb_ctx.moveTo(thumb_size/2, thumb_size * 0.95);
+    thumb_ctx.lineTo(thumb_size/2, thumb_size * 0.65);
+    thumb_ctx.moveTo(thumb_size * 0.95, thumb_size/2);
+    thumb_ctx.lineTo(thumb_size * 0.65, thumb_size/2);
+    thumb_ctx.moveTo(thumb_size/2, thumb_size * 0.05);
+    thumb_ctx.lineTo(thumb_size/2, thumb_size * 0.35);
+    thumb_ctx.moveTo(thumb_size * 0.05, thumb_size/2);
+    thumb_ctx.lineTo(thumb_size * 0.35, thumb_size/2);
+    thumb_ctx.stroke();
+}
+
+clearThumbnail();
+
+const detail_button = document.getElementById('detail_button');
+const result_element = document.getElementById('tag_result_emoji');
 
 let marker_data = {};
 async function loadMarkerData() {
@@ -35,11 +60,11 @@ async function getSession() {
     localStorage.setItem('session_token', session_token);
 }
 getSession().then(() => {
-    debug_element.innerHTML = JSON.stringify({
+    console.log(JSON.stringify({
 	game: game_token,
 	session: session_token,
 	player: player_id
-    });
+    }, null, 2));
 });
 
 // Create the 4x4_50 dictionary by slicing the first 50 codes and setting tau = 4
@@ -56,7 +81,7 @@ const detector = new AR.Detector({
 
 var onTagResult = async function (result) {};
 
-input.addEventListener('change', (event) => {
+image_input.addEventListener('change', (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
@@ -66,20 +91,22 @@ input.addEventListener('change', (event) => {
     const objectUrl = URL.createObjectURL(file);
 
     img.onload = async () => {
-	// 2. Downscale large mobile photos (e.g., max width 1280px)
+	// Downscale large mobile photos (e.g., max width 1280px)
 	const MAX_SIZE = 1000;
 	const scale = Math.min(1, MAX_SIZE / img.width, );
-	canvas.width = img.width * scale;
-	canvas.height = img.height * scale;
+	const width = img.width * scale;
+	const height = img.height * scale;
+	processing_canvas.width = width;
+	processing_canvas.height = height;
 
-	const center = { "x": canvas.width / 2, "y": canvas.height / 2 };
+	const center = { "x": width / 2, "y": height / 2 };
 
 	// Draw image to canvas (modern browsers automatically handle EXIF rotation)
-	ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+	ctx.drawImage(img, 0, 0, width, height);
 	URL.revokeObjectURL(objectUrl); // Free up memory
 
-	// 3. Extract pixel data and run detection
-	const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+	// Extract pixel data and run detection
+	const imageData = ctx.getImageData(0, 0, width, height);
 	const markers = detector.detect(imageData);
 
 	console.log(`Found ${markers.length} markers:`, markers);
@@ -98,7 +125,7 @@ input.addEventListener('change', (event) => {
 	    marker.centrality = marker.diameter / marker.distance;
 	});
 
-	// 4. Detect and score pairs in preparation for determining a result
+	// Detect and score pairs in preparation for determining a result
 	const valid_markers = markers.filter(marker => marker.id in marker_data);
 	const team_markers = valid_markers.filter(marker => marker_data[marker.id].kind === "team");
 	const id_markers = valid_markers.filter(marker => marker_data[marker.id].kind !== "team");
@@ -140,14 +167,15 @@ input.addEventListener('change', (event) => {
 	});
 	pair_group_list.sort((a,b) => b.score - a.score);
 
-	// 5. Draw bounding boxes around all detected markers, winners or otherwise
+	// Draw bounding boxes around all detected markers, winners or otherwise
 	valid_markers.forEach((marker) => { drawOutline(ctx, marker, "#0000FF"); });
 
-	// 6. Detect if a winner exists and draw boxes on winner or runners up, and update result indicator
+	// Detect if a winner exists and draw boxes on winner or runners up, and update result indicator
+	let winning_pair_groups = [];
 	if (pair_group_list.length > 0) {
 	    // Don't detect a hit if multiple groups are "tied" for first place (within a factor of 0.25)
 	    // Continue to tune this factor through field testing
-	    const winning_pair_groups = pair_group_list.filter((group) => group.score > pair_group_list[0].score * 0.25);
+	    winning_pair_groups = pair_group_list.filter((group) => group.score > pair_group_list[0].score * 0.25);
 
 	    if (winning_pair_groups.length === 1) {
 		result_element.innerHTML = winning_pair_groups[0].team.emoji + winning_pair_groups[0].id.emoji;
@@ -155,10 +183,6 @@ input.addEventListener('change', (event) => {
 		winning_pair_groups[0].pairs.forEach((pair) => {
 		    [pair.team, pair.id].forEach((marker) => {
 			drawOutline(ctx, marker, "#00FF00");
-
-			ctx.font = "36px Arial, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji'";
-			ctx.textBaseline = "middle";
-			ctx.fillText(marker_data[marker.id]["emoji"], marker.corners[0].x, marker.corners[0].y);
 		    });
 		});
 
@@ -178,12 +202,86 @@ input.addEventListener('change', (event) => {
 	    result_element.innerHTML = "";
 	}
 
-	// 7. Print debug information used to fine-tune detection parameters
-	debug_element.innerHTML = JSON.stringify(
+	// Find the bounding box to include in the thumbnail
+	let minX = Infinity;
+	let minY = Infinity;
+	let maxX = -Infinity;
+	let maxY = -Infinity;
+
+        winning_pair_groups.forEach((group) => {
+            group.pairs.forEach((pair) => {
+                [pair.team, pair.id].forEach((marker) => {
+		    for (const { x, y } of marker.corners) {
+			if (x < minX) minX = x;
+			if (y < minY) minY = y;
+			if (x > maxX) maxX = x;
+			if (y > maxY) maxY = y;
+		    }
+                });
+            });
+        });
+
+	if (Number.isFinite(minX)) {
+	    const thumb_pad = 25;
+	    minX -= thumb_pad;
+	    minY -= thumb_pad;
+	    maxX += thumb_pad;
+	    maxY += thumb_pad;
+	} else {
+	    minX = 0;
+	    minY = 0;
+	    maxX = width;
+	    maxY = height;
+	}
+
+	const trim = (maxX - minX) - (maxY - minY);
+	if (trim > 0) {
+	    minY -= trim / 2;
+	    maxY += trim / 2
+	} else {
+	    minX += trim / 2;
+	    maxX -= trim / 2
+	}
+
+	if (minX < 0) minX = 0;
+	if (minY < 0) minY = 0;
+	if (maxX > width) maxX = width;
+	if (maxY > height) maxY = height;
+
+	const thumb_size = thumbnail_canvas.getBoundingClientRect().width;
+	thumbnail_canvas.width = thumb_size;
+	thumbnail_canvas.height = thumb_size;
+
+	let minXt = 0;
+	let minYt = 0;
+	let maxXt = thumb_size;
+	let maxYt = thumb_size;
+
+	let t_aspect = (maxX - minX) / (maxY - minY);
+	if (t_aspect > 1) {
+	    const thumb_trim = thumb_size * (1 - 1/t_aspect) / 2;
+	    minYt += thumb_trim;
+	    maxYt -= thumb_trim;
+	} else {
+	    const thumb_trim = thumb_size * (1 - t_aspect) / 2;
+	    minXt += thumb_trim;
+	    maxXt -= thumb_trim;
+	}
+
+	thumb_ctx.fillStyle = '#777';
+	thumb_ctx.fillRect(0, 0, thumb_size, thumb_size);
+	thumb_ctx.drawImage(processing_canvas,
+			    minX, minY, maxX-minX, maxY-minY,
+			    minXt, minYt, maxXt-minXt, maxYt-minYt);
+
+	detail_button.disabled = false;
+	detail_button.innerHTML = "🔍";
+
+	console.log(JSON.stringify(
 	    pair_group_list,
 	    ["name", "proximity", "score", "pairs", "team", "id", "centrality"],
 	    2
-	);
+	));
     };
 
     img.src = objectUrl;
