@@ -4,9 +4,9 @@ from flask import Flask, request, send_from_directory
 
 app = Flask(__name__)
 
-@app.route('/node_modules/<path:filename>')
-def node_modules(filename):
-    return send_from_directory('node_modules', filename)
+@app.route('/lib/<path:filename>')
+def lib(filename):
+    return send_from_directory('lib', filename)
 
 @app.route('/api/get_session')
 def get_session():
@@ -27,7 +27,7 @@ def main():
         mode_name, *game_args = sys.argv[1:]
 
     app.game = load_game(mode_name, *game_args)
-    app.run()
+    app.run(host="0.0.0.0", port=8000)
 
 if __name__ == "__main__":
     main()
